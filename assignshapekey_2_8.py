@@ -594,7 +594,7 @@ def addMissingSegs(selPaths, byPart):
         else:
             resSegCnt.append([])                        
             for j, part in enumerate(path.parts):
-                partSegCnt = path.getPartView().getSegCnt()
+                partSegCnt = part.getSegCnt()
                 resSegCnt[i].append(partSegCnt)
                 
                 #First path                 
