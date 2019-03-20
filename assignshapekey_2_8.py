@@ -282,7 +282,7 @@ class Segment():
         return leftBotBack_rgtTopFront
 
 class Part():
-    def __init__(self, segs, parent, isClosed):
+    def __init__(self, parent, segs, isClosed):
         self.parent = parent
         self.segs = segs
 
@@ -375,15 +375,24 @@ class Part():
 
 
 class Path:
-    def __init__(self, curve):
+    def __init__(self, curve, objData = None, name = None):
+        
+        if(objData == None):
+            objData = curve.data
+            
+        if(name == None):
+            name = curve.name
+        
+        self.name = name
         self.curve = curve
-        self.parts = [Part(getSplineSegs(s), self, s.use_cyclic_u) for s in curve.data.splines]
+        
+        self.parts = [Part(self, getSplineSegs(s), s.use_cyclic_u) for s in objData.splines]
 
     def getPartCnt(self):
         return len(self.parts)
         
     def getPartView(self):
-        p = Part([seg for part in self.parts for seg in part.getSegs()], self, None)
+        p = Part(self, [seg for part in self.parts for seg in part.getSegs()], None)
         return p
     
     def getPartBoundaryIdxs(self):
@@ -416,7 +425,7 @@ class Path:
                 vectCmpWithMargin(monolithicSegList[nextIdx-1].end, currPart.getSegs()[-1].end)):
                 isClosed = currPart.isClosed 
 
-            self.parts.append(Part(monolithicSegList[currIdx:nextIdx], self, isClosed))
+            self.parts.append(Part(self, monolithicSegList[currIdx:nextIdx], isClosed))
             if(monolithicSegList[nextIdx-1] == currPart.getSegs()[-1]):
                 partIdx += 1
                 if(partIdx < len(oldParts)):
@@ -435,6 +444,7 @@ def main(removeOriginal, space, matchParts, matchCriteria, alignBy, alignValues)
     if(len(shapekeys) == 0):
         return
 
+    shapekeys = getExistingShapeKeyPaths(target) + shapekeys
     userSel = [target] + shapekeys
 
     for path in userSel:
@@ -641,7 +651,7 @@ def addMissingSegs(selPaths, byPart):
                         newSegs += subdivideSeg(seg, numSubdivs)
                         cumulSegIdx += 1
                     
-                    path.parts[j] = Part(newSegs, path, part.isClosed)
+                    path.parts[j] = Part(path, newSegs, part.isClosed)
         else:
             for j in range(0, len(path.parts)):
                 part = path.parts[j]
@@ -665,7 +675,7 @@ def addMissingSegs(selPaths, byPart):
                         newSegs += subdivideSeg(seg, subdivCnt)
                     
                     #isClosed won't be used, but let's update anyway
-                    path.parts[j] = Part(newSegs, path, part.isClosed)
+                    path.parts[j] = Part(path, newSegs, part.isClosed)
 
 def alignPath(path, matchParts, matchCriteria, alignBy, alignValues):
 
@@ -738,14 +748,33 @@ def alignPath(path, matchParts, matchCriteria, alignBy, alignValues):
                     startPt = seg.start
                     startIdx = j
                     
-            path.parts[i]= Part(parts[i].getSegsCopy(startIdx, None) + \
-                parts[i].getSegsCopy(None, startIdx), path, parts[i].isClosed)
+            path.parts[i]= Part(path, parts[i].getSegsCopy(startIdx, None) + \
+                parts[i].getSegsCopy(None, startIdx), parts[i].isClosed)
         else:
             path.parts[i] = parts[i]
-
+            
+#TODO: Other shape key attributes like interpolation...
+def getExistingShapeKeyPaths(path):
+    obj = path.curve
+    paths = []
+    
+    if(obj.data.shape_keys != None):
+        keyblocks = obj.data.shape_keys.key_blocks[1:]#Skip basis
+        for key in keyblocks:
+            datacopy = obj.data.copy()
+            i = 0
+            for spline in datacopy.splines:
+                for pt in spline.bezier_points:
+                    pt.co = key.data[i].co
+                    pt.handle_left = key.data[i].handle_left
+                    pt.handle_right = key.data[i].handle_right
+                    i += 1 
+            paths.append(Path(obj, datacopy, key.name))
+    return paths
+    
 def addShapeKey(curve, paths, space):
     for path in paths:
-        key = curve.shape_key_add(name = path.curve.name)
+        key = curve.shape_key_add(name = path.name)
         pts = [pt for pset in getSplineDataForPath(path) for pt in pset]
         for i, pt in enumerate(pts):
             if(space == 'worldspace'):
