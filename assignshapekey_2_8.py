@@ -806,8 +806,15 @@ def addCurve(path):
         keyblocks = reversed(obj.data.shape_keys.key_blocks)
         for sk in keyblocks:
             obj.shape_key_remove(sk)
-    bpy.context.scene.collection.objects.link(obj)    
     
+    collections = path.curve.users_collection
+    for collection in collections:
+        collection.objects.link(obj)
+
+    if(path.curve.name in bpy.context.scene.collection.objects and \
+        obj.name not in bpy.context.scene.collection.objects):
+        bpy.context.scene.collection.objects.link(obj)
+
     return obj
 
 def getNewCurveData(bpy, splinesData, path):
