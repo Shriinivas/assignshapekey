@@ -784,18 +784,22 @@ def addShapeKey(curve, paths, space):
             key.data[i].handle_right = pt[2]
             
 def safeRemoveCurveObj(obj):
-    collections = obj.users_collection
+    #TODO: Check situations where the obj is already removed
+    try:
+        collections = obj.users_collection
 
-    for c in collections:
-        c.objects.unlink(obj)
-        
-    if(obj.name in bpy.context.scene.collection.objects):
-        bpy.context.scene.collection.objects.unlink(obj)
-        
-    if(obj.data.users == 1):
-        bpy.data.curves.remove(obj.data) #This also removes object?        
-    else:
-        bpy.data.objects.remove(obj)
+        for c in collections:
+            c.objects.unlink(obj)
+            
+        if(obj.name in bpy.context.scene.collection.objects):
+            bpy.context.scene.collection.objects.unlink(obj)
+            
+        if(obj.data.users == 1):
+            bpy.data.curves.remove(obj.data) #This also removes object?        
+        else:
+            bpy.data.objects.remove(obj)
+    except:
+        pass
 
 def addCurve(path):
     splineData = getSplineDataForPath(path)
