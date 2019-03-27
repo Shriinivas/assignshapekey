@@ -84,7 +84,7 @@ class AssignShapeKeyParams(bpy.types.PropertyGroup):
 class AssignShapeKeysPanel(bpy.types.Panel):
     
     bl_label = "Assign Shape Keys"
-    bl_idname = "panel.assign_shape_keys"
+    bl_idname = "CURVE_PT_assign_shape_keys"
     bl_space_type = 'PROPERTIES'
     bl_region_type = 'WINDOW'
     bl_context = '.objectmode'
