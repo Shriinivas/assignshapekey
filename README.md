@@ -20,9 +20,9 @@ For smoother transition, you can subdivide the segments of one of the curves in 
 # Manual Alignment of Starting Vertices
 In the edit mode the Assign Shape Keys panel shows a single button - Mark Starting Vertices. When Clicked, all the starting vertices of the closed splines (disconnected parts) of the selected curves are indicated by a marking uv sphere. Now if the user selects any vertex, the marker moves to this selected vertex, indicating the new starting vertex. You need to confirm the new positions by pressing enter. Pressing escape, reverts the positions to the earlier order.
 
-<b><a href= https://youtu.be/1pDd_GgsfSM> This video</a> provides a detailed overview of the add-on functionality and various options available.<br>
-Manual vertex alignment is explained in more detail in this video.<br>
-And you will find a usage example with practical application of the tool (retaining shape key after change in topology) in this video.<br><br>
+<b><a href=https://youtu.be/1pDd_GgsfSM> This video</a> provides a detailed overview of the add-on functionality and various options available.<br>
+Manual vertex alignment is explained in more detail in <a href=https://youtu.be/z-H_T2GszvM>this video.</a><br>
+And you will find a usage example with practical application of the tool (retaining shape key after change in topology) in <a href=https://youtu.be/Gt2C2Hlh8Sk>this video.</a><br><br>
 </b>
 
 # Limitations
