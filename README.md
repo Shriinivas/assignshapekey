@@ -17,7 +17,13 @@ Select the target and shape key Bezier curve objects. Make sure the target is th
 There are a number of option to align the closed (cyclic spline) target and shape-key curves. Also it's possible to match individual parts from a multi-part (multi-spline) of target and shape key curves (e.g. text object converted to curve) based on various criteria.<br><br>
 For smoother transition, you can subdivide the segments of one of the curves in the selection group.<br><br>
 
-<b><a href= https://youtu.be/1pDd_GgsfSM> This video</a> provides a detailed overview of the add-on functionality and various options available.<br><br></b>
+# Manual Alignment of Starting Vertices
+In the edit mode the Assign Shape Keys panel shows a single button - Mark Starting Vertices. When Clicked, all the starting vertices of the closed splines (disconnected parts) of the selected curves are indicated by a marking uv sphere. Now if the user selects any vertex, the marker moves to this selected vertex, indicating the new starting vertex. You need to confirm the new positions by pressing enter. Pressing escape, reverts the positions to the earlier order.
+
+<b><a href= https://youtu.be/1pDd_GgsfSM> This video</a> provides a detailed overview of the add-on functionality and various options available.<br>
+Manual vertex alignment is explained in more detail in this video.<br>
+And you will find a usage example with practical application of the tool (retaining shape key after change in topology) in this video.<br><br>
+</b>
 
 # Limitations
 Exercise caution when using this add-on in production as it's in beta stage<br>
