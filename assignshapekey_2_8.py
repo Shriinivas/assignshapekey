@@ -91,8 +91,11 @@ class AssignShapeKeysPanel(bpy.types.Panel):
     
     bl_label = "Assign Shape Keys"
     bl_idname = "CURVE_PT_assign_shape_keys"
-    bl_space_type = 'PROPERTIES'
-    bl_region_type = 'WINDOW'
+    # ~ bl_space_type = 'PROPERTIES'
+    # ~ bl_region_type = 'WINDOW'
+    bl_space_type = 'VIEW_3D'
+    bl_region_type = 'UI'
+    bl_category = "Tool"
         
     @classmethod
     def poll(cls, context):
