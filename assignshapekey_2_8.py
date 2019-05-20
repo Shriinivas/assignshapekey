@@ -99,8 +99,8 @@ class AssignShapeKeysPanel(bpy.types.Panel):
         
     @classmethod
     def poll(cls, context):
-        return context.mode in {'OBJECT', 'EDIT_CURVE'} and \
-            context.space_data.context == 'TOOL'
+        return context.mode in {'OBJECT', 'EDIT_CURVE'} 
+            # ~ and context.space_data.context == 'TOOL'
         
     def draw(self, context):
         layout = self.layout
