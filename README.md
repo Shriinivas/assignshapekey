@@ -1,6 +1,6 @@
 # Blender add-on to assign shape keys<br>
 This add-on lets you assign one or more Bezier curve(s) as shape keys to other curve<br>
-Supported Blender version: 2.8 beta <br>
+Supported Blender version: 2.8 beta (build dated later than May 19, 2019)<br>
 Script File: assignshapekey_2_8.py <br>
 
 # Installation
