@@ -11,7 +11,8 @@
 #
 # Not yet pep8 compliant 
 
-import bpy, math, bmesh
+import bpy, bmesh, math, bgl, gpu
+from gpu_extras.batch import batch_for_shader
 from bpy.props import BoolProperty, EnumProperty
 from collections import OrderedDict
 from mathutils import Vector
@@ -164,9 +165,11 @@ class AssignShapeKeysOp(bpy.types.Operator):
         return {'FINISHED'}
 
 class MarkerController:
-    scale = Vector([1, 1, 1])
+    drawHandlerRef = None
+    defPointSize = 6
+    ptColor = (0, .8, .8, 1)
     
-    def createMarkers(self, context):
+    def createSMMap(self, context):
         objs = context.selected_objects
         smMap = {}
         for curve in objs:
@@ -174,20 +177,13 @@ class MarkerController:
                 continue
                 
             smMap[curve.name] = {}
+            mw = curve.matrix_world
             for splineIdx, spline in enumerate(curve.data.splines):
                 if(not spline.use_cyclic_u):
                     continue
-                    
-                #TODO: Maybe share the data
-                bm = bmesh.new()
-                bmesh.ops.create_uvsphere(bm, u_segments=10, v_segments=10, diameter = .05)
-                d = bpy.data.meshes.new('___tmp')
-                bm.to_mesh(d)
-                marker = bpy.data.objects.new('___tmp', d)
-                bpy.context.scene.collection.objects.link(marker)
-                marker.show_in_front = True
-                marker.scale = MarkerController.scale
-                smMap[curve.name][splineIdx] = [marker, 0]#marker and curr start vert idx
+                
+                smMap[curve.name][splineIdx] = \
+                    [mw @ curve.data.splines[splineIdx].bezier_points[0].co, 0] #curr start vert idx
                 
                 for pt in spline.bezier_points:
                     pt.select_control_point = False
@@ -197,18 +193,37 @@ class MarkerController:
                 
         return smMap
         
-    def removeMarkers(self):
-        for spMap in self.smMap.values():
-            for markerInfo in spMap.values():
-                marker, idx = markerInfo[0], markerInfo[1]
-                safeRemoveCurveObj(marker)
+    def createBatch(self, context):
+        positions = [s[0] for cn in self.smMap.values() for s in cn.values()]
+        colors = [MarkerController.ptColor for i in range(0, len(positions))]
+
+        self.batch = batch_for_shader(self.shader, \
+            "POINTS", {"pos": positions, "color": colors})
+        
+        if context.area:    
+            context.area.tag_redraw()
+        
+    def drawHandler(self):
+        bgl.glPointSize(MarkerController.defPointSize)
+        self.batch.draw(self.shader)
+    
+    def removeMarkers(self, context):
+        if(MarkerController.drawHandlerRef != None):
+            bpy.types.SpaceView3D.draw_handler_remove(MarkerController.drawHandlerRef, "WINDOW")
+            if(context.area and hasattr(context.space_data, 'region_3d')):
+                context.area.tag_redraw()
+            MarkerController.drawHandlerRef = None
+        self.deselectAll()
         
     def __init__(self, context):
-        self.smMap = self.createMarkers(context)           
-        self.moveMarkersToVerts()
+        self.smMap = self.createSMMap(context)           
+        self.shader = gpu.shader.from_builtin('3D_FLAT_COLOR')
+        self.shader.bind()
+        MarkerController.drawHandlerRef = bpy.types.SpaceView3D.draw_handler_add(self.drawHandler, \
+            (), "WINDOW", "POST_VIEW")
+        self.createBatch(context)
     
     def saveStartVerts(self):
-        
         for curveName in self.smMap.keys():
             curve = bpy.data.objects[curveName]
             splines = curve.data.splines
@@ -218,7 +233,7 @@ class MarkerController:
                 markerInfo = spMap[splineIdx]
                 if(markerInfo[1] != 0):
                     pts = splines[splineIdx].bezier_points
-                    marker, idx = markerInfo[0], markerInfo[1]
+                    loc, idx = markerInfo[0], markerInfo[1]                    
                     cnt = len(pts)
                     
                     ptCopy = [[p.co.copy(), p.handle_right.copy(), \
@@ -235,33 +250,27 @@ class MarkerController:
                         pt.handle_right = p[1]
                         pt.handle_left = p[2]
                             
-    def moveMarkersToVerts(self):
+    def updateSMMap(self):
         for curveName in self.smMap.keys():
             curve = bpy.data.objects[curveName]
             spMap = self.smMap[curveName]
             mw = curve.matrix_world
             for splineIdx in spMap.keys():
                 markerInfo = spMap[splineIdx]
-                marker, idx = markerInfo[0], markerInfo[1]
+                loc, idx = markerInfo[0], markerInfo[1]
                 pts = curve.data.splines[splineIdx].bezier_points
                 selIdxs = [x for x in range(0, len(pts)) \
                     if pts[x].select_control_point == True]        
-                if(len(selIdxs) > 0 ):
-                    selIdx = selIdxs[0]
-                    markerInfo[1] = selIdx
-                    pt = pts[selIdx] 
-                else:
-                    pt = pts[idx]
-                co = mw @ pt.co
-                if(marker.location != co):
-                    marker.location = co
-                    
-    def scaleMarker(self):
-        markers = [m[0] for spMap in self.smMap.values() for m in spMap.values()]
-        if(len(markers) == 0):
-            return
-        for m in markers:
-            m.scale = MarkerController.scale
+                selIdx = selIdxs[0] if(len(selIdxs) > 0 ) else idx
+                co = mw @ pts[selIdx].co
+                self.smMap[curveName][splineIdx] = [co, selIdx]
+           
+    def deselectAll(self):
+        for curveName in self.smMap.keys():
+            curve = bpy.data.objects[curveName]
+            for spline in curve.data.splines:
+                for pt in spline.bezier_points:
+                    pt.select_control_point = False
         
     def getSpaces3D(context):
         areas3d  = [area for area in context.window.screen.areas if area.type == 'VIEW_3D']
@@ -285,18 +294,17 @@ class ModalMarkSegStartOp(bpy.types.Operator):
     bl_description = "Mark Vertex"
     bl_idname = "wm.mark_vertex"
     bl_label = "Mark Start Vertex"
-    # ~ bl_options = {'GRAB_CURSOR'}
     
     def cleanup(self, context):
         wm = context.window_manager
         wm.event_timer_remove(self._timer)
-        self.markerState.removeMarkers()
+        self.markerState.removeMarkers(context)
         MarkerController.resetShowHandleState(context, self.handleStates)
         context.window_manager.AssignShapeKeyParams.markVertex = False
 
     def modal (self, context, event):
         params = context.window_manager.AssignShapeKeyParams
-        
+
         if(context.mode  == 'OBJECT' or event.type == "ESC" or\
             not context.window_manager.AssignShapeKeyParams.markVertex):
             self.cleanup(context)
@@ -308,34 +316,29 @@ class ModalMarkSegStartOp(bpy.types.Operator):
             return {'FINISHED'}
             
         if(event.type == 'TIMER'):
-            self.markerState.moveMarkersToVerts()
+            self.markerState.updateSMMap()
+            self.markerState.createBatch(context)
+            
         elif(event.type in {'LEFT_CTRL', 'RIGHT_CTRL'}):
             self.ctrl = (event.value == 'PRESS')
+            
         elif(event.type in {'LEFT_SHIFT', 'RIGHT_SHIFT'}):
             self.shift = (event.value == 'PRESS')
-        else:
+            
             if(event.type not in {"MIDDLEMOUSE", "TAB", "LEFTMOUSE", \
                 "RIGHTMOUSE", 'WHEELDOWNMOUSE', 'WHEELUPMOUSE'} and \
                 not event.type.startswith("NUMPAD_")):
                 return {'RUNNING_MODAL'}
-            elif(event.type in {'WHEELDOWNMOUSE', 'WHEELUPMOUSE'} \
-                and self.shift and self.ctrl):
-                up = event.type == 'WHEELUPMOUSE'                    
-                MarkerController.scale *= 1.1 if(up) else .9                    
-                self.markerState.scaleMarker()
-                return {'RUNNING_MODAL'}
-            elif(event.type == 'MIDDLEMOUSE' and self.shift and self.ctrl):
-                MarkerController.scale = Vector([1,1,1])
-                self.markerState.scaleMarker()                 
-                return {'RUNNING_MODAL'}
-            
+                
         return {"PASS_THROUGH"}
 
     def execute(self, context):
-        self._timer = context.window_manager.event_timer_add(time_step = 0.01, \
+        #TODO: Why such small step?
+        self._timer = context.window_manager.event_timer_add(time_step = 0.0001, \
             window = context.window)
         self.ctrl = False
         self.shift = False
+
         context.window_manager.modal_handler_add(self)
         self.markerState = MarkerController(context)
         self.handleStates = MarkerController.hideHandles(context)
