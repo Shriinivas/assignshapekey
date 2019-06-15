@@ -28,11 +28,6 @@ bl_info = {
     "blender": (2, 80, 0),
 }
 
-def getAlignmentList(scene, context):
-    return [("-None-", 'Manual Alignment', "Align curve segments based on starting vertex"), \
-        ('vertCo', 'Vertex Coordinates', 
-            'Align curve segments based on vertex coordinates')]
-
 matchList = [('vCnt', 'Vertex Count', 'Match by vertex count'),
             ('bbArea', 'Area', 'Match by surface area of the bounding box'), \
             ('bbHeight', 'Height', 'Match by bounding box height'), \
@@ -59,8 +54,11 @@ class AssignShapeKeyParams(bpy.types.PropertyGroup):
         ('localspace', 'Local Space', 'localspace')], \
         description = 'Space that shape keys are evluated in')
 
-    alignList : EnumProperty(name="Vertex Alignment", items = getAlignmentList, \
-        description = 'Start aligning the vertices of target and shape keys from')
+    alignList : EnumProperty(name="Vertex Alignment", items = \
+        [("-None-", 'Manual Alignment', "Align curve segments based on starting vertex"), \
+         ('vertCo', 'Vertex Coordinates', 'Align curve segments based on vertex coordinates')], \
+        description = 'Start aligning the vertices of target and shape keys from', 
+        default = '-None-')
     
     alignVal1 : EnumProperty(name="Value 1", 
         items = matchList, default = 'minX', description='First align criterion')
@@ -71,8 +69,11 @@ class AssignShapeKeyParams(bpy.types.PropertyGroup):
     alignVal3 : EnumProperty(name="Value 3", 
         items = matchList, default = 'minZ', description='Third align criterion')
     
-    matchParts : BoolProperty(name="Match Parts", \
-        description='Match disconnected parts', default = False)
+    matchParts : EnumProperty(name="Match Parts", items = \
+        [("-None-", 'None', "Don't match parts"), \
+        ('default', 'Default', 'Use part order as in curve'), \
+        ('custom', 'Custom', 'Use one of the custom criteria for part matching')], \
+        description='Match disconnected parts', default = 'default')
         
     matchCri1 : EnumProperty(name="Value 1", 
         items = matchList, default = 'minX', description='First match criterion')
@@ -125,7 +126,7 @@ class AssignShapeKeysPanel(bpy.types.Panel):
             row = col.row()
             row.prop(context.window_manager.AssignShapeKeyParams, "matchParts")
             
-            if(context.window_manager.AssignShapeKeyParams.matchParts):
+            if(context.window_manager.AssignShapeKeyParams.matchParts == 'custom'):
                 row = col.row()
                 row.prop(context.window_manager.AssignShapeKeyParams, "matchCri1")
                 row.prop(context.window_manager.AssignShapeKeyParams, "matchCri2")
@@ -723,7 +724,7 @@ def main(removeOriginal, space, matchParts, matchCriteria, alignBy, alignValues)
     for path in userSel:
         alignPath(path, matchParts, matchCriteria, alignBy, alignValues)
 
-    addMissingSegs(userSel, byPart = matchParts)
+    addMissingSegs(userSel, byPart = (matchParts != "-None-"))
 
     bIdxs = set()
     for path in userSel:
@@ -956,7 +957,7 @@ def alignPath(path, matchParts, matchCriteria, alignBy, alignValues):
 
     parts = path.parts[:]    
 
-    if(matchParts):
+    if(matchParts == 'custom'):
         fnMap = {'vCnt' : lambda part: -1 * part.getSegCnt(), \
                  'bbArea': lambda part: -1 * part.bboxSurfaceArea(worldSpace = True), \
                  'bbHeight' : lambda part: -1 * part.getBBHeight(worldSpace = True), \
@@ -1073,8 +1074,8 @@ def safeRemoveCurveObj(obj):
             if(obj.type == 'CURVE'):
                 bpy.data.curves.remove(obj.data) #This also removes object?        
             elif(obj.type == 'MESH'):
-                bpy.data.meshes.remove(obj.data) #This also removes object?        
-        else:
-            bpy.data.objects.remove(obj)
+                bpy.data.meshes.remove(obj.data)
+        
+        bpy.data.objects.remove(obj)
     except:
         pass
