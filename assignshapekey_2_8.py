@@ -900,9 +900,9 @@ def addMissingSegs(selPaths, byPart):
                         #Also, adjust the seg count of the last part of the previous 
                         #segments that had fewer than max number of parts
                         for k in range(0, i):
-                            if(len(sortedElems[k].parts) < len(maxSegCntsByPart)):
+                            if(len(sortedPaths[k].parts) < len(maxSegCntsByPart)):
                                 totalSegs = sum(maxSegCntsByPart)
-                                existingSegs = sum(maxSegCntsByPart[:len(sortedElems[k].parts)-1])
+                                existingSegs = sum(maxSegCntsByPart[:len(sortedPaths[k].parts)-1])
                                 resSegCnt[k][-1] = totalSegs - existingSegs
                     
                 elif(partSegCnt > maxSegCntsByPart[j]):
