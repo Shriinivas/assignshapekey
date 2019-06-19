@@ -3,20 +3,19 @@
 # This Blender add-on assigns one or more Bezier Curves as shape keys to another 
 # Bezier Curve
 #
-# Supported Blender Version: 2.8 Beta
+# Supported Blender Version: 2.80 Beta
 #
 # Copyright (C) 2019  Shrinivas Kulkarni
 #
 # License: MIT (https://github.com/Shriinivas/assignshapekey/blob/master/LICENSE)
 #
-# Not yet pep8 compliant 
 
-import bpy, bmesh, math, bgl, gpu
+import bpy, bmesh, bgl, gpu
 from gpu_extras.batch import batch_for_shader
 from bpy.props import BoolProperty, EnumProperty
 from collections import OrderedDict
 from mathutils import Vector
-from math import sqrt
+from math import sqrt, floor
 from functools import cmp_to_key
 
 #################### UI and Registration Stuff ####################
@@ -24,8 +23,10 @@ from functools import cmp_to_key
 bl_info = {
     "name": "Assign Shape Keys",
     "author": "Shrinivas Kulkarni",
+    "version": (1, 0, 0),    
     "location": "Properties > Active Tool and Workspace Settings > Assign Shape Keys",
-    "category": "Animation",
+    "description": "Assigns one or more Bezier curves as shape keys to another Bezier curve",    
+    "category": "Object",
     "blender": (2, 80, 0),
 }
 
@@ -47,12 +48,13 @@ def markVertHandler(self, context):
     
 class AssignShapeKeyParams(bpy.types.PropertyGroup):
     
-    removeOriginal : BoolProperty(name="Remove Original Curves", \
-        description="Replace with the original target and shape key curves with the new ones", \
-            default = False)
+    removeOriginal : BoolProperty(name = "Remove Shape Key Objects", \
+        description = "Remove shape key objects after assigning to target", \
+            default = True)
     
-    space : EnumProperty(name="Space", items = [('worldspace', 'World Space', 'worldspace'), 
-        ('localspace', 'Local Space', 'localspace')], \
+    space : EnumProperty(name = "Space", \
+        items = [('worldspace', 'World Space', 'worldspace'), 
+                 ('localspace', 'Local Space', 'localspace')], \
         description = 'Space that shape keys are evluated in')
 
     alignList : EnumProperty(name="Vertex Alignment", items = \
@@ -72,7 +74,7 @@ class AssignShapeKeyParams(bpy.types.PropertyGroup):
     
     matchParts : EnumProperty(name="Match Parts", items = \
         [("-None-", 'None', "Don't match parts"), \
-        ('default', 'Default', 'Use part order as in curve'), \
+        ('default', 'Default', 'Use part (spline) order as in curve'), \
         ('custom', 'Custom', 'Use one of the custom criteria for part matching')], \
         description='Match disconnected parts', default = 'default')
         
@@ -93,8 +95,6 @@ class AssignShapeKeysPanel(bpy.types.Panel):
     
     bl_label = "Assign Shape Keys"
     bl_idname = "CURVE_PT_assign_shape_keys"
-    # ~ bl_space_type = 'PROPERTIES'
-    # ~ bl_region_type = 'WINDOW'
     bl_space_type = 'VIEW_3D'
     bl_region_type = 'UI'
     bl_category = "Tool"
@@ -102,41 +102,43 @@ class AssignShapeKeysPanel(bpy.types.Panel):
     @classmethod
     def poll(cls, context):
         return context.mode in {'OBJECT', 'EDIT_CURVE'} 
-            # ~ and context.space_data.context == 'TOOL'
         
     def draw(self, context):
+        
         layout = self.layout
         col = layout.column()
+        params = context.window_manager.AssignShapeKeyParams
         
         if(context.mode  == 'OBJECT'):
             row = col.row()
-            row.prop(context.window_manager.AssignShapeKeyParams, "removeOriginal")
+            row.prop(params, "removeOriginal")
 
             row = col.row()
-            row.prop(context.window_manager.AssignShapeKeyParams, "space")
+            row.prop(params, "space")
 
             row = col.row()
-            row.prop(context.window_manager.AssignShapeKeyParams, "alignList")
+            row.prop(params, "alignList")
             
-            if(context.window_manager.AssignShapeKeyParams.alignList == 'vertCo'):
+            if(params.alignList == 'vertCo'):
                 row = col.row()
-                row.prop(context.window_manager.AssignShapeKeyParams, "alignVal1")
-                row.prop(context.window_manager.AssignShapeKeyParams, "alignVal2")
-                row.prop(context.window_manager.AssignShapeKeyParams, "alignVal3")
+                row.prop(params, "alignVal1")
+                row.prop(params, "alignVal2")
+                row.prop(params, "alignVal3")
             
             row = col.row()
-            row.prop(context.window_manager.AssignShapeKeyParams, "matchParts")
+            row.prop(params, "matchParts")
             
-            if(context.window_manager.AssignShapeKeyParams.matchParts == 'custom'):
+            if(params.matchParts == 'custom'):
                 row = col.row()
-                row.prop(context.window_manager.AssignShapeKeyParams, "matchCri1")
-                row.prop(context.window_manager.AssignShapeKeyParams, "matchCri2")
-                row.prop(context.window_manager.AssignShapeKeyParams, "matchCri3")
+                row.prop(params, "matchCri1")
+                row.prop(params, "matchCri2")
+                row.prop(params, "matchCri3")
             
             row = col.row()
             row.operator("object.assign_shape_keys")
         else:
-            col.prop(context.window_manager.AssignShapeKeyParams, "markVertex", toggle = True)
+            col.prop(params, "markVertex", \
+                toggle = True)
 
 class AssignShapeKeysOp(bpy.types.Operator):
 
@@ -145,18 +147,19 @@ class AssignShapeKeysOp(bpy.types.Operator):
     bl_options = {'REGISTER', 'UNDO'}
 
     def execute(self, context):
-        removeOriginal = context.window_manager.AssignShapeKeyParams.removeOriginal
-        space = context.window_manager.AssignShapeKeyParams.space
+        params = context.window_manager.AssignShapeKeyParams
+        removeOriginal = params.removeOriginal
+        space = params.space
 
-        matchParts = context.window_manager.AssignShapeKeyParams.matchParts
-        matchCri1 = context.window_manager.AssignShapeKeyParams.matchCri1
-        matchCri2 = context.window_manager.AssignShapeKeyParams.matchCri2
-        matchCri3 = context.window_manager.AssignShapeKeyParams.matchCri3
+        matchParts = params.matchParts
+        matchCri1 = params.matchCri1
+        matchCri2 = params.matchCri2
+        matchCri3 = params.matchCri3
 
-        alignBy = context.window_manager.AssignShapeKeyParams.alignList
-        alignVal1 = context.window_manager.AssignShapeKeyParams.alignVal1
-        alignVal2 = context.window_manager.AssignShapeKeyParams.alignVal2
-        alignVal3 = context.window_manager.AssignShapeKeyParams.alignVal3
+        alignBy = params.alignList
+        alignVal1 = params.alignVal1
+        alignVal2 = params.alignVal2
+        alignVal3 = params.alignVal3
 
         createdObjsMap = main(removeOriginal, space, \
                             matchParts, [matchCri1, matchCri2, matchCri3], \
@@ -182,8 +185,9 @@ class MarkerController:
                 if(not spline.use_cyclic_u):
                     continue
                 
+                #initialize to the curr start vert co and idx
                 smMap[curve.name][splineIdx] = \
-                    [mw @ curve.data.splines[splineIdx].bezier_points[0].co, 0] #curr start vert idx
+                    [mw @ curve.data.splines[splineIdx].bezier_points[0].co, 0] 
                 
                 for pt in spline.bezier_points:
                     pt.select_control_point = False
@@ -209,18 +213,25 @@ class MarkerController:
     
     def removeMarkers(self, context):
         if(MarkerController.drawHandlerRef != None):
-            bpy.types.SpaceView3D.draw_handler_remove(MarkerController.drawHandlerRef, "WINDOW")
+            bpy.types.SpaceView3D.draw_handler_remove(MarkerController.drawHandlerRef, \
+                "WINDOW")
+                
             if(context.area and hasattr(context.space_data, 'region_3d')):
                 context.area.tag_redraw()
+                
             MarkerController.drawHandlerRef = None
+            
         self.deselectAll()
         
     def __init__(self, context):
         self.smMap = self.createSMMap(context)           
         self.shader = gpu.shader.from_builtin('3D_FLAT_COLOR')
         self.shader.bind()
-        MarkerController.drawHandlerRef = bpy.types.SpaceView3D.draw_handler_add(self.drawHandler, \
-            (), "WINDOW", "POST_VIEW")
+        
+        MarkerController.drawHandlerRef = \
+            bpy.types.SpaceView3D.draw_handler_add(self.drawHandler, \
+                (), "WINDOW", "POST_VIEW")
+                
         self.createBatch(context)
     
     def saveStartVerts(self):
@@ -237,12 +248,13 @@ class MarkerController:
                     cnt = len(pts)
                     
                     ptCopy = [[p.co.copy(), p.handle_right.copy(), \
-                        p.handle_left.copy(), p.handle_right_type, p.handle_left_type] \
-                            for p in pts]
+                        p.handle_left.copy(), p.handle_right_type, \
+                            p.handle_left_type] for p in pts]
 
                     for i, pt in enumerate(pts):
                         srcIdx = (idx + i) % cnt
                         p = ptCopy[srcIdx]
+                        
                         #Must set the types first
                         pt.handle_right_type = p[3]
                         pt.handle_left_type = p[4]
@@ -255,12 +267,15 @@ class MarkerController:
             curve = bpy.data.objects[curveName]
             spMap = self.smMap[curveName]
             mw = curve.matrix_world
+            
             for splineIdx in spMap.keys():
                 markerInfo = spMap[splineIdx]
                 loc, idx = markerInfo[0], markerInfo[1]
                 pts = curve.data.splines[splineIdx].bezier_points
+                
                 selIdxs = [x for x in range(0, len(pts)) \
-                    if pts[x].select_control_point == True]        
+                    if pts[x].select_control_point == True]
+                     
                 selIdx = selIdxs[0] if(len(selIdxs) > 0 ) else idx
                 co = mw @ pts[selIdx].co
                 self.smMap[curveName][splineIdx] = [co, selIdx]
@@ -273,7 +288,9 @@ class MarkerController:
                     pt.select_control_point = False
         
     def getSpaces3D(context):
-        areas3d  = [area for area in context.window.screen.areas if area.type == 'VIEW_3D']
+        areas3d  = [area for area in context.window.screen.areas \
+            if area.type == 'VIEW_3D']
+            
         return [s for a in areas3d for s in a.spaces if s.type == 'VIEW_3D']
         
     def hideHandles(context):
@@ -341,6 +358,8 @@ class ModalMarkSegStartOp(bpy.types.Operator):
 
         context.window_manager.modal_handler_add(self)
         self.markerState = MarkerController(context)
+        
+        #Hide so that users don't accidentally select handles instead of points
         self.handleStates = MarkerController.hideHandles(context)
 
         return {"RUNNING_MODAL"}
@@ -363,20 +382,30 @@ def unregister():
 if __name__ == "__main__":
     register()
 
-###################### addon code start ####################
+#################### Addon code starts ####################
 
 DEF_ERR_MARGIN = 0.0001
 
+def isBezier(obj):
+    return obj.type == 'CURVE' and len(obj.data.splines) > 0 \
+        and obj.data.splines[0].type == 'BEZIER'
+
+#Avoid errors due to floating point conversions/comparisons
+#TODO: return -1, 0, 1
+def floatCmpWithMargin(float1, float2, margin = DEF_ERR_MARGIN):
+    return abs(float1 - float2) < margin 
+
+def vectCmpWithMargin(v1, v2, margin = DEF_ERR_MARGIN):
+    return all(floatCmpWithMargin(v1[i], v2[i], margin) for i in range(0, len(v1)))
+
 class Segment():
 
-    #From svgpathtools
     #pts[0] - start, pts[1] - ctrl1, pts[2] - ctrl2, , pts[3] - end
     def pointAtT(pts, t):
         return pts[0] + t * (3 * (pts[1] - pts[0]) + 
             t* (3 * (pts[0] + pts[2]) - 6 * pts[1] + 
                 t * (-pts[0] + 3 * (pts[1] - pts[2]) + pts[3])))
 
-    #From svgpathtools (static method)
     def getSegLenRecurs(pts, start, end, t1 = 0, t2 = 1, error = DEF_ERR_MARGIN):
         t1_5 = (t1 + t2)/2
         mid = Segment.pointAtT(pts, t1_5)
@@ -490,7 +519,7 @@ class Part():
         #use_cyclic_u
         self.isClosed = isClosed 
 
-        #Should this be closed based on its counterparts in other paths
+        #Indicates if this should be closed based on its counterparts in other paths
         self.toClose = isClosed 
 
         self.length = sum(seg.length for seg in self.segs)
@@ -649,11 +678,15 @@ class Path:
             nextIdx = segCntsPerPart[i]
             isClosed = False
 
-            if(vectCmpWithMargin(monolithicSegList[currIdx].start, currPart.getSegs()[0].start) and \
-                vectCmpWithMargin(monolithicSegList[nextIdx-1].end, currPart.getSegs()[-1].end)):
+            if(vectCmpWithMargin(monolithicSegList[currIdx].start, \
+                    currPart.getSegs()[0].start) and \
+                vectCmpWithMargin(monolithicSegList[nextIdx-1].end, \
+                    currPart.getSegs()[-1].end)):
                 isClosed = currPart.isClosed 
 
-            self.parts.append(Part(self, monolithicSegList[currIdx:nextIdx], isClosed))
+            self.parts.append(Part(self, \
+                monolithicSegList[currIdx:nextIdx], isClosed))
+                
             if(monolithicSegList[nextIdx-1] == currPart.getSegs()[-1]):
                 partIdx += 1
                 if(partIdx < len(oldParts)):
@@ -736,7 +769,7 @@ def main(removeOriginal, space, matchParts, matchCriteria, alignBy, alignValues)
     for path in userSel:
         path.updatePartsList(sorted(list(bIdxs)), byPart = False)
 
-    #All will have same part count by now        
+    #All will have the same part count by now        
     allToClose = [all(path.parts[j].isClosed for path in userSel) 
         for j in range(0, len(userSel[0].parts))]
 
@@ -757,10 +790,6 @@ def main(removeOriginal, space, matchParts, matchCriteria, alignBy, alignValues)
 
     return {}
 
-def isBezier(obj):
-    return obj.type == 'CURVE' and len(obj.data.splines) > 0 \
-        and obj.data.splines[0].type == 'BEZIER'
-
 def getSplineSegs(spline):
     p = spline.bezier_points
     segs = [Segment(p[i-1].co, p[i-1].handle_right, p[i].handle_left, p[i].co) \
@@ -769,15 +798,6 @@ def getSplineSegs(spline):
         segs.append(Segment(p[-1].co, p[-1].handle_right, p[0].handle_left, p[0].co))
     return segs
     
-#Avoid errors due to floating point conversions/comparisons
-#TODO: return -1, 0, 1
-def floatCmpWithMargin(float1, float2, margin = DEF_ERR_MARGIN):
-    return abs(float1 - float2) < margin 
-
-def vectCmpWithMargin(v1, v2, margin = DEF_ERR_MARGIN):
-    return all(floatCmpWithMargin(v1[i], v2[i]) for i in range(0, len(v1)))
-
-
 def subdivideSeg(origSeg, noSegs):
     if(noSegs < 2):
         return [origSeg]
@@ -853,11 +873,11 @@ def getSubdivCntPerSeg(part, toAddCnt):
                 
     return cnts
 
-#Distribute equally; this is likely a rare condition. So why complicate?
+#Just distribute equally; this is likely a rare condition. So why complicate?
 def distributeCnt(maxSegCntsByPart, startIdx, extraCnt):    
     added = 0
     elemCnt = len(maxSegCntsByPart) - startIdx
-    cntPerElem = math.floor(extraCnt / elemCnt)
+    cntPerElem = floor(extraCnt / elemCnt)
     remainder = extraCnt % elemCnt
     
     for i in range(startIdx, len(maxSegCntsByPart)):
