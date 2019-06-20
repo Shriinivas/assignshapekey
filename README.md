@@ -5,6 +5,7 @@ Supported Blender version: <b>2.8 beta (build dated later than May 19, 2019)<br>
 Script File: <b>assignshapekey_2_8.py <br></b>
 
 # Installation
+(The upt-to-date version of the add-on is available as part of the standard add-on repository of Blender 2.80 after June 20 2019 build. So you can skip the installation steps if you have downloaded Blender 2.80 after this date. In such case, you just need to enable the add-on from the add-ons dialog.)
 - Download assignshapekey_2_8.py
 - In Blender select File->User Preferences
 - Click install Add-ons tab and then Install Add-on from File
