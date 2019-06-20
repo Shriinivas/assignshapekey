@@ -16,6 +16,8 @@ After installation, a new 'Assign Shape Keys' panel shows up in 'Active Tool and
 # Quick start
 Select the target and shape key Bezier curve objects. Make sure the target is the active object; you can do this by right-clicking the target curve while holding the shift key after the other selections are made. Go to the 'Assign Shape Keys' tab and click 'Assign Shape Keys' button. Now a copy of the active object curve will be created, which will have the other selected curves as its target. If the 'Remove Original Objects' option is checked, the selected curve objects will be deleted and only the target is kept. <br><br>
 There are a number of option to align the closed (cyclic spline) target and shape-key curves. Also it's possible to match individual parts from a multi-part (multi-spline) of target and shape key curves (e.g. text object converted to curve) based on various criteria.<br><br>
+![Demo](https://github.com/Shriinivas/assignshapekey/blob/master/assigndemo2.gif)
+
 For smoother transition, you can subdivide the segments of one of the curves in the selection group.<br><br>
 
 # Manual Alignment of Starting Vertices
