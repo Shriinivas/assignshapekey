@@ -28,7 +28,7 @@ Change of vertex order being a change in topology, this operation will distort t
 
 <b><a href=https://youtu.be/1pDd_GgsfSM> This video</a> provides a detailed overview of the add-on functionality and various options available.<br>
 Manual vertex alignment is explained in more detail in <a href=https://youtu.be/z-H_T2GszvM>this video.</a> (the marker spheres are now replaced with marker points [of fixed size] and so the marker size change feature is removed from the latest version) <br>
-And you will find a usage example with practical application of the tool (retaining shape key after change in topology) in <a href=https://youtu.be/Gt2C2Hlh8Sk>this video.</a><br><br>
+And you will find a usage example with practical application of the tool (retaining shape key after change in topology) in <a href=https://youtu.be/Gt2C2Hlh8Sk>this video.</a> Finally the tutorial on creating a font morphing animation using this addon is <a href='https://youtu.be/2OwfAJhpz7Q'>here</a>.<br><br>
 </b>
 
 # Limitations
