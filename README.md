@@ -22,6 +22,8 @@ For smoother transition, you can subdivide the segments of one of the curves in 
 
 # Manual Alignment of Starting Vertices
 In the edit mode the Assign Shape Keys panel shows a single button - Mark Starting Vertices. When Clicked, all the starting vertices of the closed splines (disconnected parts) of the selected curves are indicated by a marking point. Now if the user selects any vertex, the marker moves to this selected vertex, indicating the new starting vertex. You need to confirm the new positions by pressing enter. Pressing escape, reverts the positions to the earlier order.<br>
+![Demo](https://github.com/Shriinivas/assignshapekey/blob/master/assigndemo3.gif)
+
 Change of vertex order being a change in topology, this operation will distort the existing shape keys. (See the usage example for a fix.)
 
 <b><a href=https://youtu.be/1pDd_GgsfSM> This video</a> provides a detailed overview of the add-on functionality and various options available.<br>
