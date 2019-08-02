@@ -1,18 +1,12 @@
 ![Demo](https://github.com/Shriinivas/assignshapekey/blob/master/assigndemo.gif)
 # Blender add-on to assign shape keys<br>
 This add-on lets you assign one or more Bezier curve(s) as shape keys to other curve<br><br>
-Supported Blender version: <b>2.8 beta (build dated later than May 19, 2019)<br></b>
-Script File: <b>assignshapekey_2_8.py <br></b>
+Available in Blender version: <b>2.8<br></b>
 
 # Installation
-(The upt-to-date version of the add-on is available as part of the standard add-on repository of Blender 2.80 after June 20 2019 build. So you can skip the installation steps if you have downloaded Blender 2.80 after this date. In such case, you just need to enable the add-on from the add-ons dialog.)
-- Download assignshapekey_2_8.py
-- In Blender select File->User Preferences
-- Click install Add-ons tab and then Install Add-on from File
-- Select the downloaded file
-- Check the 'Assign Shape Keys' option in the add-ons dialog <br>
+The add-on is available as part of the standard add-on repository of Blender 2.8. You just need to enable the add-on from the add-ons dialog.
   
-After installation, a new 'Assign Shape Keys' panel shows up in 'Active Tool and Workspace settings' tab when application is in object mode. <br><br>
+After enabling the add-on, a new 'Assign Shape Keys' panel shows up in 'Active Tool and Workspace settings' tab when application is in object mode. <br><br>
 
 # Quick start
 Select the target and shape key Bezier curve objects. Make sure the target is the active object; you can do this by right-clicking the target curve while holding the shift key after the other selections are made. Go to the 'Assign Shape Keys' tab and click 'Assign Shape Keys' button. Now a copy of the active object curve will be created, which will have the other selected curves as its target. If the 'Remove Original Objects' option is checked, the selected curve objects will be deleted and only the target is kept. <br><br>
