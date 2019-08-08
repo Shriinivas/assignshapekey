@@ -7,7 +7,7 @@
 #
 # Copyright (C) 2019  Shrinivas Kulkarni
 #
-# License: MIT (https://github.com/Shriinivas/assignshapekey/blob/master/LICENSE)
+# License: GPL (https://github.com/Shriinivas/assignshapekey/blob/master/LICENSE)
 #
 
 import bpy, bmesh, bgl, gpu
